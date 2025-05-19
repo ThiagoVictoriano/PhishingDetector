@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Phishing Detector Options</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="options-page">
+  <h1>Phishing Detector Settings</h1>
+  <label>
+    <input type="checkbox" id="blockEnabled">
+    Enable automatic blocking of dangerous sites
+  </label>
+  <label>
+    Suspicious Threshold:
+    <input type="number" id="suspiciousThreshold" min="0" max="20" value="4">
+  </label>
+  <label>
+    Dangerous Threshold:
+    <input type="number" id="dangerousThreshold" min="0" max="20" value="7">
+  </label>
+  <label>
+    Whitelist (one domain per line):
+    <textarea id="whitelist"></textarea>
+  </label>
+  <div class="button-group">
+    <button id="save">Save</button>
+    <button id="reset">Reset to Defaults</button>
+  </div>
+  <p id="status" class="status-message"></p>
+  <script src="options.js"></script>
+</body>
+</html>

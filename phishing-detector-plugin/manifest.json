@@ -1,25 +1,35 @@
-
 {
   "manifest_version": 2,
   "name": "Phishing Detector",
   "version": "1.0",
-  "description": "Detecta URLs suspeitas em tempo real.",
+  "description": "Detecta sites de phishing e bloqueia acesso a páginas perigosas.",
   "permissions": [
-    "tabs",
     "webRequest",
-    "webRequestBlocking",
-    "<all_urls>",
+    "notifications",
+    "tabs",
+    "activeTab",
     "storage",
-    "notifications"
+    "<all_urls>"
   ],
   "background": {
-    "scripts": ["background.js"]
+    "scripts": ["JS/background.js"],
+    "persistent": true
   },
+  "content_scripts": [
+    {
+      "matches": ["*://mail.google.com/*", "*://outlook.live.com/*"],
+      "js": ["JS/content.js"]
+    }
+  ],
   "browser_action": {
-    "default_popup": "popup.html",
-    "default_icon": "icons/icon.png"
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
   },
   "icons": {
     "48": "icons/icon.png"
-  }
+  },
+  "content_security_policy": "script-src 'self'; object-src 'self'"
 }

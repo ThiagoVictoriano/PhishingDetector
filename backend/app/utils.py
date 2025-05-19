@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 OPENPHISH_FEED = "https://openphish.com/feed.txt"
 PHISHTANK_FEED = "https://data.phishtank.com/data/online-valid.json"
 
-SPECIAL_CHARS = r"[!@#$%^&*()_+=\[\]{};:'\"\\|,.<>/?]"
+SPECIAL_CHARS = r"[!@#$%^&*()_+=\[\]{};:'\"\\|,.<>/?]"  # Mantém a expressão regular, mas será aplicada apenas ao domínio
 
 # Lista de provedores de DNS dinâmico
 DYNAMIC_DNS_PROVIDERS = [
@@ -77,15 +77,16 @@ def detect_number_substitution(domain: str) -> bool:
     return False
 
 def has_special_characters(url: str) -> bool:
+    """
+    Verifica a presença de caracteres especiais apenas no domínio principal (exclui subdomínios como 'www').
+    Args:
+        url: URL a ser verificada (e.g., 'https://www.google.com').
+    Returns:
+        bool: True se o domínio principal contém caracteres especiais, False caso contrário.
+    """
     extracted = tldextract.extract(url)
-    domain_part = f"{extracted.domain}.{extracted.suffix}"
-    if extracted.subdomain:
-        domain_part = f"{extracted.subdomain}.{domain_part}"
-    
-    domain_str = f"{extracted.subdomain}.{extracted.domain}" if extracted.subdomain else extracted.domain
-    domain_has_special = bool(re.search(SPECIAL_CHARS, domain_str))
-    
-    return domain_has_special
+    domain_str = extracted.domain  # Verifica apenas o domínio principal (e.g., 'google' em 'www.google.com')
+    return bool(re.search(SPECIAL_CHARS, domain_str))
 
 def extract_domain(url: str) -> str:
     extracted = tldextract.extract(url)
