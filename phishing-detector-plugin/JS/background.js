@@ -36,6 +36,9 @@ function calcularScore(data, settings) {
   return score;
 }
 
+// Log inicial para confirmar carregamento
+console.log("🟢 Background script iniciado.");
+
 // Notificação de instalação
 browser.runtime.onInstalled.addListener(() => {
   console.log("🧩 Plugin instalado.");
@@ -69,9 +72,9 @@ const checkUrl = debounce(async (details, isEmailLink = false) => {
     return;
   }
 
-  // Evita notificações duplicadas para a mesma aba (exceto para links de e-mail)
-  if (!isEmailLink && notifiedTabs.has(tabId)) {
-    console.log("🔔 Notificação já exibida para aba:", tabId);
+  // Para links de e-mails, evita notificações duplicadas
+  if (isEmailLink && notifiedTabs.has(tabId)) {
+    console.log("🔔 Notificação já exibida para link de e-mail na aba:", tabId);
     return;
   }
 
@@ -128,6 +131,7 @@ async function processResult(result, url, tabId, isEmailLink) {
       if (blockEnabled && tabId !== -1) {
         browser.tabs.update(tabId, { url: browser.runtime.getURL("blocked.html") });
       }
+      // Adiciona ao notifiedTabs apenas para evitar notificações imediatas
       notifiedTabs.add(tabId);
       setTimeout(() => notifiedTabs.delete(tabId), 1000 * 60 * 5);
     } else {
@@ -137,6 +141,9 @@ async function processResult(result, url, tabId, isEmailLink) {
         message: `O link pode ser phishing:\n${url}`,
         iconUrl: "icons/icon.png"
       });
+      // Para links de e-mails, adiciona ao notifiedTabs
+      notifiedTabs.add(tabId);
+      setTimeout(() => notifiedTabs.delete(tabId), 1000 * 60 * 5);
     }
   } else if (score >= suspiciousThreshold) {
     console.log("⚠️ Site suspeito:", url);
@@ -147,6 +154,7 @@ async function processResult(result, url, tabId, isEmailLink) {
         message: `Este site pode ser suspeito:\n${url}`,
         iconUrl: "icons/icon.png"
       });
+      // Adiciona ao notifiedTabs apenas para evitar notificações imediatas
       notifiedTabs.add(tabId);
       setTimeout(() => notifiedTabs.delete(tabId), 1000 * 60 * 5);
     } else {
@@ -156,6 +164,9 @@ async function processResult(result, url, tabId, isEmailLink) {
         message: `O link pode ser suspeito:\n${url}`,
         iconUrl: "icons/icon.png"
       });
+      // Para links de e-mails, adiciona ao notifiedTabs
+      notifiedTabs.add(tabId);
+      setTimeout(() => notifiedTabs.delete(tabId), 1000 * 60 * 5);
     }
   } else {
     console.log("✅ Site seguro:", url);
@@ -166,24 +177,32 @@ async function processResult(result, url, tabId, isEmailLink) {
         message: `O link parece seguro:\n${url}`,
         iconUrl: "icons/icon.png"
       });
+      // Para links de e-mails, adiciona ao notifiedTabs
+      notifiedTabs.add(tabId);
+      setTimeout(() => notifiedTabs.delete(tabId), 1000 * 60 * 5);
     }
   }
 }
 
 // Escuta requisições web
 browser.webRequest.onCompleted.addListener(
-  (details) => checkUrl(details, false),
+  (details) => {
+    console.log("🌐 Requisição web detectada:", details.url);
+    checkUrl(details, false);
+  },
   { urls: ["<all_urls>"], types: ["main_frame"] }
 );
 
 // Escuta mensagens do content script
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "checkLink") {
+    console.log("📧 Mensagem de link de e-mail recebida:", message.url);
     checkUrl({ url: message.url, tabId: sender.tab.id }, true);
   }
 });
 
 // Limpa notificações quando a aba é fechada
 browser.tabs.onRemoved.addListener((tabId) => {
+  console.log("🗑️ Aba fechada, removendo do notifiedTabs:", tabId);
   notifiedTabs.delete(tabId);
 });
