@@ -119,10 +119,13 @@ async function processResult(result, url, tabId, isEmailLink) {
 
   console.log("📊 Score de risco:", score, "URL:", url);
 
+  // Gera um ID único para a notificação
+  const notificationId = `phishing-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
   if (score >= dangerousThreshold) {
     console.warn("🚨 Site PERIGOSO detectado:", url);
     if (!isEmailLink) {
-      browser.notifications.create({
+      browser.notifications.create(notificationId, {
         type: "basic",
         title: "🚨 Site de phishing detectado!",
         message: `Este site foi marcado como perigoso:\n${url}`,
@@ -131,58 +134,86 @@ async function processResult(result, url, tabId, isEmailLink) {
       if (blockEnabled && tabId !== -1) {
         browser.tabs.update(tabId, { url: browser.runtime.getURL("blocked.html") });
       }
-      // Adiciona ao notifiedTabs apenas para evitar notificações imediatas
-      notifiedTabs.add(tabId);
-      setTimeout(() => notifiedTabs.delete(tabId), 1000 * 60 * 5);
     } else {
-      browser.notifications.create({
+      browser.notifications.create(notificationId, {
         type: "basic",
         title: "🚨 Link perigoso!",
         message: `O link pode ser phishing:\n${url}`,
         iconUrl: "icons/icon.png"
       });
-      // Para links de e-mails, adiciona ao notifiedTabs
       notifiedTabs.add(tabId);
       setTimeout(() => notifiedTabs.delete(tabId), 1000 * 60 * 5);
     }
   } else if (score >= suspiciousThreshold) {
     console.log("⚠️ Site suspeito:", url);
     if (!isEmailLink) {
-      browser.notifications.create({
+      browser.notifications.create(notificationId, {
         type: "basic",
         title: "⚠️ Site suspeito",
         message: `Este site pode ser suspeito:\n${url}`,
         iconUrl: "icons/icon.png"
       });
-      // Adiciona ao notifiedTabs apenas para evitar notificações imediatas
-      notifiedTabs.add(tabId);
-      setTimeout(() => notifiedTabs.delete(tabId), 1000 * 60 * 5);
     } else {
-      browser.notifications.create({
+      browser.notifications.create(notificationId, {
         type: "basic",
         title: "⚠️ Link suspeito",
         message: `O link pode ser suspeito:\n${url}`,
         iconUrl: "icons/icon.png"
       });
-      // Para links de e-mails, adiciona ao notifiedTabs
       notifiedTabs.add(tabId);
       setTimeout(() => notifiedTabs.delete(tabId), 1000 * 60 * 5);
     }
   } else {
     console.log("✅ Site seguro:", url);
+    // Notificação para sites seguros, independentemente de isEmailLink
+    browser.notifications.create(notificationId, {
+      type: "basic",
+      title: "✅ Site seguro",
+      message: `Este site foi considerado seguro:\n${url}`,
+      iconUrl: "icons/icon.png"
+    });
     if (isEmailLink) {
-      browser.notifications.create({
-        type: "basic",
-        title: "✅ Link seguro",
-        message: `O link parece seguro:\n${url}`,
-        iconUrl: "icons/icon.png"
-      });
-      // Para links de e-mails, adiciona ao notifiedTabs
       notifiedTabs.add(tabId);
       setTimeout(() => notifiedTabs.delete(tabId), 1000 * 60 * 5);
     }
   }
+
+  // Armazena os dados da análise temporariamente
+  const analysisData = await browser.storage.local.get("analysisData");
+  await browser.storage.local.set({
+    analysisData: {
+      ...analysisData.analysisData,
+      [notificationId]: { url, ...result }
+    }
+  });
+
+  // Limpa os dados após 5 minutos
+  setTimeout(async () => {
+    try {
+      const updatedData = await browser.storage.local.get("analysisData");
+      if (updatedData.analysisData && updatedData.analysisData[notificationId]) {
+        delete updatedData.analysisData[notificationId];
+        await browser.storage.local.set({ analysisData: updatedData.analysisData });
+        console.log("🗑️ Dados de análise removidos para notificação:", notificationId);
+      }
+    } catch (err) {
+      console.error("❌ Erro ao limpar dados de análise:", err);
+    }
+  }, 1000 * 60 * 5);
 }
+
+// Escuta cliques nas notificações
+browser.notifications.onClicked.addListener(async (notificationId) => {
+  // Abre a página de detalhes
+  browser.windows.create({
+    url: browser.runtime.getURL(`details.html?id=${notificationId}`),
+    type: "popup",
+    width: 650,
+    height: 500
+  });
+  // Fecha a notificação após o clique
+  browser.notifications.clear(notificationId);
+});
 
 // Escuta requisições web
 browser.webRequest.onCompleted.addListener(
